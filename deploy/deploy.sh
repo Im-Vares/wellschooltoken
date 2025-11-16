@@ -81,7 +81,7 @@ if [ -d "frontend" ]; then
 fi
 
 echo -e "${GREEN}Шаг 8: Настройка переменных окружения...${NC}"
-if [ ! -f "$APP_DIR/.env" ]; then
+  if [ ! -f "$APP_DIR/.env" ]; then
     cat > $APP_DIR/.env << EOF
 # Backend
 NODE_ENV=production
@@ -94,9 +94,21 @@ NEXT_PUBLIC_API_URL=http://localhost:$BACKEND_PORT/api
 PORT=$FRONTEND_PORT
 EOF
     echo -e "${GREEN}Создан файл .env${NC}"
-else
+  else
     echo -e "${YELLOW}Файл .env уже существует${NC}"
-fi
+  fi
+
+  # Создаем .env.local для frontend (Next.js использует этот файл)
+  cat > $APP_DIR/frontend/.env.local << EOF
+NEXT_PUBLIC_API_URL=http://localhost:$BACKEND_PORT/api
+EOF
+  echo -e "${GREEN}Создан frontend/.env.local${NC}"
+  
+  # Также создаем .env.production
+  cat > $APP_DIR/frontend/.env.production << EOF
+NEXT_PUBLIC_API_URL=http://localhost:$BACKEND_PORT/api
+EOF
+  echo -e "${GREEN}Создан frontend/.env.production${NC}"
 
 echo -e "${GREEN}Шаг 9: Сборка frontend...${NC}"
 if [ -d "frontend" ]; then
