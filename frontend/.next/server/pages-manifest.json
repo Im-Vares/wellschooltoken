@@ -1,0 +1,14 @@
+{
+  "/_app": "pages/_app.js",
+  "/_error": "pages/_error.js",
+  "/_document": "pages/_document.js",
+  "/dashboard": "pages/dashboard.js",
+  "/questions/[id]": "pages/questions/[id].js",
+  "/questions": "pages/questions.js",
+  "/": "pages/index.js",
+  "/achievements": "pages/achievements.js",
+  "/login": "pages/login.js",
+  "/admin/login": "pages/admin/login.js",
+  "/admin": "pages/admin.js",
+  "/admin/submissions": "pages/admin/submissions.js"
+}
