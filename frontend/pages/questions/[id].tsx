@@ -40,7 +40,7 @@ interface Question {
 }
 
 export default function QuestionDetail() {
-  const { user, updateTokenBalance } = useAuth();
+  const { user, refreshUser } = useAuth();
   const router = useRouter();
   const { id } = router.query;
   const [question, setQuestion] = useState<Question | null>(null);
@@ -154,7 +154,9 @@ export default function QuestionDetail() {
       await fetchQuestion();
       
       // Refresh user data to update token balance
-      await user && updateTokenBalance && updateTokenBalance(user.tokenBalance);
+      if (user) {
+        await refreshUser();
+      }
       
     } catch (error: any) {
       console.error('Error submitting answer:', error);
@@ -281,7 +283,7 @@ export default function QuestionDetail() {
               className="flex items-center space-x-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-lg px-4 py-2"
             >
               <Coins className="w-5 h-5 text-yellow-400" />
-              <span className="font-bold text-white">{user.tokenBalance}</span>
+              <span className="font-bold text-white">{user?.tokenBalance || 0}</span>
               <span className="text-purple-400">tokens</span>
             </motion.div>
           </div>
