@@ -91,7 +91,7 @@ NEXT_PUBLIC_API_URL=http://localhost:5001/api
 
 # Frontend
 NEXT_PUBLIC_API_URL=http://localhost:5001/api
-PORT=3000
+PORT=3001
 EOF
 ```
 
@@ -123,7 +123,7 @@ module.exports = {
       args: 'run dev',
       env: {
         NODE_ENV: 'production',
-        PORT: 3000,
+        PORT: 3001,
         NEXT_PUBLIC_API_URL: 'http://localhost:5001/api'
       },
       error_file: '/var/log/pm2/wellschool-token-frontend-error.log',
@@ -160,7 +160,7 @@ server {
 
     # Frontend
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:3001;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -277,7 +277,7 @@ pm2 restart all
 pm2 logs
 
 # Проверьте порты
-sudo netstat -tlnp | grep -E '3000|5001|6385'
+sudo netstat -tlnp | grep -E '3001|5001|6385'
 
 # Проверьте права доступа
 sudo chown -R $USER:$USER /var/www/wellschool-token

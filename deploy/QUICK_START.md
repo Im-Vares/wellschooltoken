@@ -90,7 +90,7 @@ pm2 logs wellschool-token-frontend
 sudo systemctl reload nginx
 
 # Проверка портов
-sudo netstat -tlnp | grep -E '3000|5001|6385'
+sudo netstat -tlnp | grep -E '3001|5001|6385'
 ```
 
 ## Если что-то пошло не так

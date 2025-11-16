@@ -18,7 +18,7 @@ APP_NAME="wellschool-token"
 APP_DIR="/var/www/$APP_NAME"
 APP_PORT=6385
 BACKEND_PORT=5001
-FRONTEND_PORT=3000
+FRONTEND_PORT=3001
 NODE_VERSION="18.x"
 
 # Проверка прав root
@@ -165,7 +165,7 @@ server {
 
     # Frontend
     location / {
-        proxy_pass http://localhost:$FRONTEND_PORT;
+        proxy_pass http://localhost:3001;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
