@@ -41,6 +41,21 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
+# Проверяем наличие .env файлов
+if [ ! -f "backend/.env" ] && [ -f ".env" ]; then
+    echo "📋 Копируем .env в backend..."
+    cp .env backend/.env
+fi
+
+if [ ! -f "frontend/.env.local" ] && [ -f ".env" ]; then
+    echo "📋 Создаем frontend/.env.local..."
+    if grep -q "NEXT_PUBLIC_API_URL" .env; then
+        grep "NEXT_PUBLIC_API_URL" .env > frontend/.env.local
+    else
+        echo "NEXT_PUBLIC_API_URL=http://localhost:5001/api" > frontend/.env.local
+    fi
+fi
+
 echo ""
 echo "🎯 Starting servers..."
 echo "📍 Backend API will run on: http://localhost:5001"
