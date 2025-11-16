@@ -4,7 +4,24 @@
 
 echo "🔍 Проверка администратора..."
 
-cd /var/www/wellschool-token/backend || exit 1
+# Определяем корневую директорию проекта
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+BACKEND_DIR="$PROJECT_ROOT/backend"
+
+# Если не найдено, пробуем стандартный путь
+if [ ! -d "$BACKEND_DIR" ]; then
+    BACKEND_DIR="/var/www/wellschool-token/backend"
+fi
+
+if [ ! -d "$BACKEND_DIR" ]; then
+    echo "❌ Директория backend не найдена!"
+    echo "   Искали в: $BACKEND_DIR"
+    exit 1
+fi
+
+cd "$BACKEND_DIR" || exit 1
+echo "📁 Рабочая директория: $(pwd)"
 
 # Проверяем существование базы данных
 if [ ! -f "database.sqlite" ]; then
@@ -19,7 +36,7 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
-const dbPath = path.join(__dirname, 'database.sqlite');
+const dbPath = path.join(process.cwd(), 'database.sqlite');
 const db = new sqlite3.Database(dbPath);
 
 // Инициализируем базу данных если нужно
