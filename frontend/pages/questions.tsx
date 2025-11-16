@@ -115,11 +115,11 @@ export default function Questions() {
     if (!question.hasSubmitted) return null;
     
     if (question.submissionStatus === 'pending') {
-      return <Clock className="w-5 h-5 text-yellow-400" title="Pending review" />;
+      return <span title="Pending review"><Clock className="w-5 h-5 text-yellow-400" /></span>;
     } else if (question.submissionStatus === 'reviewed') {
       return question.submissionCorrect ? 
-        <CheckCircle className="w-5 h-5 text-green-400" title="Correct answer" /> : 
-        <XCircle className="w-5 h-5 text-red-400" title="Incorrect answer" />;
+        <span title="Correct answer"><CheckCircle className="w-5 h-5 text-green-400" /></span> : 
+        <span title="Incorrect answer"><XCircle className="w-5 h-5 text-red-400" /></span>;
     }
     return null;
   };
