@@ -267,7 +267,7 @@ export default function Profile() {
                     <p className="text-purple-400 text-lg">@{user.username}</p>
                     <div className="flex items-center space-x-2 text-gray-400 mt-2">
                       <Calendar className="w-4 h-4" />
-                      <span>Member since {new Date(user.createdAt || Date.now()).toLocaleDateString()}</span>
+                      <span>Member since {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</span>
                     </div>
                   </div>
                 </div>
