@@ -378,7 +378,7 @@ export default function AdminAssignments() {
                         <div className="flex items-center space-x-6 text-sm text-gray-400">
                           <div className="flex items-center space-x-1">
                             <Users className="w-3 h-3" />
-                            <span>{assignment.submissionCount || 0} попыток</span>
+                            <span>{(assignment.submissionCount || assignment.submittedCount || 0)} попыток</span>
                           </div>
                           <div className="flex items-center space-x-1">
                             <Calendar className="w-3 h-3" />
