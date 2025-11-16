@@ -50,7 +50,8 @@ export const useAuth = () => {
 };
 
 // Configure axios defaults
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+// Если NEXT_PUBLIC_API_URL не установлен, используем относительный путь (для работы через Nginx)
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? '/api' : 'http://localhost:5001/api');
 axios.defaults.baseURL = API_BASE_URL;
 
 // Request interceptor to add auth token

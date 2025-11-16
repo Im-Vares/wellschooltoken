@@ -6,7 +6,7 @@ const nextConfig = {
   },
   // Переменные окружения для клиентской стороны
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || '/api',
   },
   // Rewrites для серверной стороны (если нужно)
   async rewrites() {
