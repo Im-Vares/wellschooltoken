@@ -49,18 +49,43 @@ fi
 
 echo -e "${GREEN}Шаг 5: Создание директории приложения...${NC}"
 mkdir -p $APP_DIR
-cd $APP_DIR
+# Не переходим в директорию сразу, сначала проверим где находится проект
 
 echo -e "${GREEN}Шаг 6: Копирование файлов проекта...${NC}"
-echo -e "${YELLOW}Пожалуйста, загрузите файлы проекта в $APP_DIR${NC}"
-echo -e "${YELLOW}Или используйте git clone, если проект в репозитории${NC}"
 
-# Если проект уже есть, обновляем
-if [ -d "$APP_DIR/.git" ]; then
-    echo -e "${GREEN}Обновление из git...${NC}"
-    git pull
+# Проверяем, есть ли проект в нужной директории
+if [ -d "$APP_DIR" ] && [ -f "$APP_DIR/package.json" ] && [ -d "$APP_DIR/backend" ] && [ -d "$APP_DIR/frontend" ]; then
+    echo -e "${GREEN}Проект уже находится в $APP_DIR${NC}"
+    cd $APP_DIR
+    if [ -d ".git" ]; then
+        echo -e "${GREEN}Обновление из git...${NC}"
+        git pull || true
+    fi
 else
-    echo -e "${YELLOW}Проект не найден. Пожалуйста, загрузите файлы вручную.${NC}"
+    # Проверяем, может быть мы уже в директории проекта (например, ~/wellschooltoken)
+    CURRENT_DIR=$(pwd)
+    if [ -f "package.json" ] && [ -d "backend" ] && [ -d "frontend" ]; then
+        echo -e "${GREEN}Проект найден в текущей директории ($CURRENT_DIR), копируем в $APP_DIR...${NC}"
+        mkdir -p $APP_DIR
+        # Копируем все файлы, исключая node_modules и .git
+        rsync -av --exclude='node_modules' --exclude='.git' --exclude='.next' --exclude='database.sqlite' . $APP_DIR/ 2>/dev/null || {
+            echo -e "${YELLOW}rsync не найден, используем cp...${NC}"
+            cp -r backend frontend deploy package.json package-lock.json start.sh README.md DEPLOYMENT.md $APP_DIR/ 2>/dev/null || true
+        }
+        cd $APP_DIR
+        echo -e "${GREEN}Проект скопирован в $APP_DIR${NC}"
+    elif [ -d "$APP_DIR/.git" ]; then
+        echo -e "${GREEN}Найден git репозиторий в $APP_DIR, обновляем...${NC}"
+        cd $APP_DIR
+        git pull || true
+    else
+        echo -e "${RED}Проект не найден!${NC}"
+        echo -e "${YELLOW}Пожалуйста, выполните одно из следующих действий:${NC}"
+        echo -e "${YELLOW}1. Загрузите файлы проекта в $APP_DIR${NC}"
+        echo -e "${YELLOW}2. Используйте git clone: git clone <repository> $APP_DIR${NC}"
+        echo -e "${YELLOW}3. Запустите скрипт из директории проекта${NC}"
+        exit 1
+    fi
 fi
 
 echo -e "${GREEN}Шаг 7: Установка зависимостей...${NC}"
@@ -99,16 +124,20 @@ EOF
   fi
 
   # Создаем .env.local для frontend (Next.js использует этот файл)
-  cat > $APP_DIR/frontend/.env.local << EOF
+  if [ -d "$APP_DIR/frontend" ]; then
+    cat > $APP_DIR/frontend/.env.local << EOF
 NEXT_PUBLIC_API_URL=http://localhost:$BACKEND_PORT/api
 EOF
-  echo -e "${GREEN}Создан frontend/.env.local${NC}"
-  
-  # Также создаем .env.production
-  cat > $APP_DIR/frontend/.env.production << EOF
+    echo -e "${GREEN}Создан frontend/.env.local${NC}"
+    
+    # Также создаем .env.production
+    cat > $APP_DIR/frontend/.env.production << EOF
 NEXT_PUBLIC_API_URL=http://localhost:$BACKEND_PORT/api
 EOF
-  echo -e "${GREEN}Создан frontend/.env.production${NC}"
+    echo -e "${GREEN}Создан frontend/.env.production${NC}"
+  else
+    echo -e "${YELLOW}Директория frontend не найдена, пропускаем создание .env.local${NC}"
+  fi
 
 echo -e "${GREEN}Шаг 9: Сборка frontend...${NC}"
 if [ -d "frontend" ]; then
