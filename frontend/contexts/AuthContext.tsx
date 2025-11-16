@@ -11,6 +11,7 @@ interface User {
   fullName: string;
   avatar?: string;
   tokenBalance: number;
+  createdAt?: string;
 }
 
 interface Admin {
