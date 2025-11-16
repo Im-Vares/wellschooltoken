@@ -67,6 +67,7 @@ export interface Assignment {
   updatedAt?: string;
   questionCount?: number;
   submittedCount?: number;
+  submissionCount?: number;
   correctCount?: number;
   questions?: Question[];
 }
