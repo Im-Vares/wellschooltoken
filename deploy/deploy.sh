@@ -49,9 +49,26 @@ fi
 
 echo -e "${GREEN}Шаг 5: Создание директории приложения...${NC}"
 mkdir -p $APP_DIR
-# Не переходим в директорию сразу, сначала проверим где находится проект
 
-echo -e "${GREEN}Шаг 6: Копирование файлов проекта...${NC}"
+echo -e "${GREEN}Шаг 6: Поиск и копирование файлов проекта...${NC}"
+
+# Функция для поиска корневой директории проекта
+find_project_root() {
+    local dir="$1"
+    while [ "$dir" != "/" ]; do
+        if [ -f "$dir/package.json" ] && [ -d "$dir/backend" ] && [ -d "$dir/frontend" ]; then
+            echo "$dir"
+            return 0
+        fi
+        dir=$(dirname "$dir")
+    done
+    return 1
+}
+
+# Определяем текущую директорию скрипта
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Ищем корень проекта, начиная с директории скрипта
+PROJECT_ROOT=$(find_project_root "$SCRIPT_DIR")
 
 # Проверяем, есть ли проект в нужной директории
 if [ -d "$APP_DIR" ] && [ -f "$APP_DIR/package.json" ] && [ -d "$APP_DIR/backend" ] && [ -d "$APP_DIR/frontend" ]; then
@@ -61,31 +78,31 @@ if [ -d "$APP_DIR" ] && [ -f "$APP_DIR/package.json" ] && [ -d "$APP_DIR/backend
         echo -e "${GREEN}Обновление из git...${NC}"
         git pull || true
     fi
-else
-    # Проверяем, может быть мы уже в директории проекта (например, ~/wellschooltoken)
-    CURRENT_DIR=$(pwd)
-    if [ -f "package.json" ] && [ -d "backend" ] && [ -d "frontend" ]; then
-        echo -e "${GREEN}Проект найден в текущей директории ($CURRENT_DIR), копируем в $APP_DIR...${NC}"
-        mkdir -p $APP_DIR
-        # Копируем все файлы, исключая node_modules и .git
-        rsync -av --exclude='node_modules' --exclude='.git' --exclude='.next' --exclude='database.sqlite' . $APP_DIR/ 2>/dev/null || {
-            echo -e "${YELLOW}rsync не найден, используем cp...${NC}"
-            cp -r backend frontend deploy package.json package-lock.json start.sh README.md DEPLOYMENT.md $APP_DIR/ 2>/dev/null || true
-        }
-        cd $APP_DIR
-        echo -e "${GREEN}Проект скопирован в $APP_DIR${NC}"
-    elif [ -d "$APP_DIR/.git" ]; then
-        echo -e "${GREEN}Найден git репозиторий в $APP_DIR, обновляем...${NC}"
-        cd $APP_DIR
-        git pull || true
+elif [ -n "$PROJECT_ROOT" ] && [ "$PROJECT_ROOT" != "$APP_DIR" ]; then
+    # Найден проект в другой директории, копируем
+    echo -e "${GREEN}Проект найден в $PROJECT_ROOT, копируем в $APP_DIR...${NC}"
+    mkdir -p $APP_DIR
+    # Копируем все файлы, исключая node_modules и .git
+    if command -v rsync &> /dev/null; then
+        rsync -av --exclude='node_modules' --exclude='.git' --exclude='.next' --exclude='database.sqlite' "$PROJECT_ROOT/" "$APP_DIR/" 2>/dev/null
     else
-        echo -e "${RED}Проект не найден!${NC}"
-        echo -e "${YELLOW}Пожалуйста, выполните одно из следующих действий:${NC}"
-        echo -e "${YELLOW}1. Загрузите файлы проекта в $APP_DIR${NC}"
-        echo -e "${YELLOW}2. Используйте git clone: git clone <repository> $APP_DIR${NC}"
-        echo -e "${YELLOW}3. Запустите скрипт из директории проекта${NC}"
-        exit 1
+        echo -e "${YELLOW}rsync не найден, используем cp...${NC}"
+        cd "$PROJECT_ROOT"
+        cp -r backend frontend deploy package.json package-lock.json start.sh README.md DEPLOYMENT.md $APP_DIR/ 2>/dev/null || true
     fi
+    cd $APP_DIR
+    echo -e "${GREEN}Проект скопирован в $APP_DIR${NC}"
+elif [ -d "$APP_DIR/.git" ]; then
+    echo -e "${GREEN}Найден git репозиторий в $APP_DIR, обновляем...${NC}"
+    cd $APP_DIR
+    git pull || true
+else
+    echo -e "${RED}Проект не найден!${NC}"
+    echo -e "${YELLOW}Пожалуйста, выполните одно из следующих действий:${NC}"
+    echo -e "${YELLOW}1. Загрузите файлы проекта в $APP_DIR${NC}"
+    echo -e "${YELLOW}2. Используйте git clone: git clone <repository> $APP_DIR${NC}"
+    echo -e "${YELLOW}3. Запустите скрипт из директории проекта или его поддиректории${NC}"
+    exit 1
 fi
 
 echo -e "${GREEN}Шаг 7: Установка зависимостей...${NC}"
