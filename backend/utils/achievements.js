@@ -46,28 +46,54 @@ function checkAchievements(userId, callback) {
         }
       });
 
-      // Insert new achievements
+      // Insert new achievements (using INSERT OR IGNORE to prevent duplicates)
       if (newAchievements.length > 0) {
-        const insertAchievement = db.prepare(`INSERT INTO userAchievements (userId, achievementId) VALUES (?, ?)`);
+        let processed = 0;
         
         newAchievements.forEach(achievement => {
-          insertAchievement.run([userId, achievement.id]);
-          
-          // Award bonus tokens if any
-          if (achievement.tokensReward > 0) {
-            db.run('UPDATE users SET tokenBalance = tokenBalance + ? WHERE id = ?', 
-              [achievement.tokensReward, userId]);
-            
-            db.run(`INSERT INTO tokenTransactions (userId, type, amount, reason, adminId) 
-                    VALUES (?, 'achievement', ?, ?, NULL)`,
-              [userId, achievement.tokensReward, `Achievement unlocked: ${achievement.name}`]);
-          }
+          // Use INSERT OR IGNORE to prevent duplicates
+          db.run(`INSERT OR IGNORE INTO userAchievements (userId, achievementId) VALUES (?, ?)`,
+            [userId, achievement.id],
+            function(err) {
+              if (err) {
+                console.error(`Error inserting achievement ${achievement.id} for user ${userId}:`, err);
+                processed++;
+                if (processed === newAchievements.length) {
+                  callback();
+                }
+                return;
+              }
+              
+              // Only award tokens if the insert was successful (this.changes > 0)
+              // If it was ignored due to duplicate, this.changes will be 0
+              if (this.changes > 0 && achievement.tokensReward > 0) {
+                db.run('UPDATE users SET tokenBalance = tokenBalance + ? WHERE id = ?', 
+                  [achievement.tokensReward, userId], (err) => {
+                    if (err) {
+                      console.error(`Error updating token balance for user ${userId}:`, err);
+                    }
+                  });
+                
+                db.run(`INSERT INTO tokenTransactions (userId, type, amount, reason, adminId) 
+                        VALUES (?, 'achievement', ?, ?, NULL)`,
+                  [userId, achievement.tokensReward, `Achievement unlocked: ${achievement.name}`],
+                  (err) => {
+                    if (err) {
+                      console.error(`Error recording token transaction for user ${userId}:`, err);
+                    }
+                  });
+              }
+              
+              processed++;
+              if (processed === newAchievements.length) {
+                callback();
+              }
+            }
+          );
         });
-        
-        insertAchievement.finalize();
+      } else {
+        callback();
       }
-
-      callback();
     });
   });
 }
