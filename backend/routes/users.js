@@ -1,9 +1,44 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const { db } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Configure multer for avatar uploads
+const avatarStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, '../uploads/avatars');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // userId will be available after authMiddleware runs
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, `avatar-${uniqueSuffix}${path.extname(file.originalname)}`);
+  }
+});
+
+const avatarUpload = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'));
+    }
+  }
+});
 
 // Get user profile
 router.get('/profile', authMiddleware('user'), (req, res) => {
@@ -74,6 +109,77 @@ router.put('/profile', [
     }
 
     res.json({ message: 'Profile updated successfully' });
+  });
+});
+
+// Upload user avatar
+router.post('/avatar', authMiddleware('user'), (req, res, next) => {
+  avatarUpload.single('avatar')(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ message: 'Размер файла превышает 2MB' });
+        }
+        return res.status(400).json({ message: 'Ошибка загрузки файла: ' + err.message });
+      }
+      return res.status(400).json({ message: err.message || 'Ошибка загрузки файла' });
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({ message: 'Файл не был загружен' });
+    }
+    
+    next();
+  });
+}, (req, res) => {
+  if (!req.user || !req.user.id) {
+    // Delete uploaded file if auth failed
+    if (req.file) {
+      fs.unlinkSync(req.file.path);
+    }
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+  const userId = req.user.id;
+  const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+  
+  // Get current avatar to delete it later
+  db.get('SELECT avatar FROM users WHERE id = ?', [userId], (err, user) => {
+    if (err) {
+      console.error('Database error:', err);
+      // Delete uploaded file
+      fs.unlinkSync(req.file.path);
+      return res.status(500).json({ message: 'Database error' });
+    }
+    
+    // Update user's avatar
+    db.run('UPDATE users SET avatar = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?', 
+      [avatarUrl, userId], 
+      function(updateErr) {
+        if (updateErr) {
+          console.error('Database error:', updateErr);
+          // Delete uploaded file
+          fs.unlinkSync(req.file.path);
+          return res.status(500).json({ message: 'Database error' });
+        }
+        
+        // Delete old avatar if exists
+        if (user && user.avatar) {
+          const oldAvatarPath = path.join(__dirname, '..', user.avatar);
+          if (fs.existsSync(oldAvatarPath)) {
+            fs.unlink(oldAvatarPath, (unlinkErr) => {
+              if (unlinkErr) {
+                console.error('Error deleting old avatar:', unlinkErr);
+              }
+            });
+          }
+        }
+        
+        res.json({ 
+          message: 'Аватар успешно загружен',
+          avatar: avatarUrl
+        });
+      }
+    );
   });
 });
 
@@ -273,8 +379,8 @@ router.post('/submissions', [
 router.get('/achievements', authMiddleware('user'), (req, res) => {
   const userId = req.user.id;
 
-  // Get user's unlocked achievements
-  db.all(`SELECT ua.*, a.name, a.description, a.icon, a.tokensReward
+  // Get user's unlocked achievements (with DISTINCT to avoid duplicates)
+  db.all(`SELECT DISTINCT ua.id, ua.achievementId, ua.unlockedAt, a.name, a.description, a.icon, a.tokensReward
           FROM userAchievements ua
           JOIN achievements a ON ua.achievementId = a.id
           WHERE ua.userId = ?
@@ -286,12 +392,13 @@ router.get('/achievements', authMiddleware('user'), (req, res) => {
         return res.status(500).json({ message: 'Database error' });
       }
 
-      // Get all available achievements
-      db.all(`SELECT a.*, 
+      // Get all available achievements (with DISTINCT to avoid duplicates)
+      db.all(`SELECT DISTINCT a.id, a.name, a.description, a.icon, a.condition_type, a.condition_value, a.tokensReward,
                      CASE WHEN ua.id IS NOT NULL THEN 1 ELSE 0 END as unlocked
               FROM achievements a
               LEFT JOIN userAchievements ua ON a.id = ua.achievementId AND ua.userId = ?
               WHERE a.isActive = 1
+              GROUP BY a.id
               ORDER BY unlocked DESC, a.id`,
         [userId],
         (err, allAchievements) => {

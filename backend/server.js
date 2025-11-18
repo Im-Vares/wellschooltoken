@@ -20,6 +20,7 @@ app.use(express.urlencoded({ extended: true }));
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/uploads/questions', express.static(path.join(__dirname, 'uploads/questions')));
+app.use('/uploads/avatars', express.static(path.join(__dirname, 'uploads/avatars')));
 
 // Import routes
 const authRoutes = require('./routes/auth');

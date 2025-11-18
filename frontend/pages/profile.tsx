@@ -20,7 +20,9 @@ import {
   LogOut,
   Eye,
   EyeOff,
-  CheckCircle
+  CheckCircle,
+  Camera,
+  Upload
 } from 'lucide-react';
 
 interface UserStats {
@@ -51,6 +53,8 @@ export default function Profile() {
     new: false,
     confirm: false
   });
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -65,6 +69,13 @@ export default function Profile() {
       newPassword: '',
       confirmPassword: ''
     });
+    
+    if (user.avatar) {
+      // If avatar is a relative path, use it as is (will be served by backend)
+      setAvatarPreview(user.avatar);
+    } else {
+      setAvatarPreview(null);
+    }
     
     fetchUserStats();
   }, [user, router]);
@@ -147,6 +158,71 @@ export default function Profile() {
       confirmPassword: ''
     });
     setIsEditing(false);
+    if (user?.avatar) {
+      setAvatarPreview(user.avatar);
+    } else {
+      setAvatarPreview(null);
+    }
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Пожалуйста, выберите изображение');
+      return;
+    }
+
+    // Validate file size (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Размер файла не должен превышать 2MB');
+      return;
+    }
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    // Upload avatar
+    setIsUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      const response = await axios.post('/users/avatar', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      toast.success(response.data.message || 'Аватар успешно загружен');
+      
+      // Update avatar preview with the new URL
+      if (response.data.avatar) {
+        setAvatarPreview(response.data.avatar);
+      }
+      
+      // Refresh user data to get updated avatar
+      await refreshUser();
+    } catch (error: any) {
+      console.error('Error uploading avatar:', error);
+      toast.error(error.response?.data?.message || 'Ошибка при загрузке аватара');
+      // Reset preview on error
+      if (user?.avatar) {
+        setAvatarPreview(user.avatar);
+      } else {
+        setAvatarPreview(null);
+      }
+    } finally {
+      setIsUploadingAvatar(false);
+      // Reset file input
+      e.target.value = '';
+    }
   };
 
   if (!user) return null;
@@ -257,8 +333,36 @@ export default function Profile() {
               <div className="space-y-6">
                 {/* Avatar and Basic Info */}
                 <div className="flex items-start space-x-6">
-                  <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                    <User className="w-12 h-12 text-white" />
+                  <div className="relative group">
+                    <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center overflow-hidden">
+                      {avatarPreview ? (
+                        <img 
+                          src={avatarPreview}
+                          alt={user.fullName}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Fallback to default icon if image fails to load
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <User className="w-12 h-12 text-white" />
+                      )}
+                    </div>
+                    <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 rounded-full cursor-pointer transition-opacity">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarChange}
+                        className="hidden"
+                        disabled={isUploadingAvatar}
+                      />
+                      {isUploadingAvatar ? (
+                        <div className="loading-spinner w-6 h-6 border-2 border-white border-t-transparent rounded-full" />
+                      ) : (
+                        <Camera className="w-6 h-6 text-white" />
+                      )}
+                    </label>
                   </div>
                   <div className="flex-1">
                     <h2 className="text-2xl font-bold text-white mb-1">
